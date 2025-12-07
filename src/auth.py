@@ -1,12 +1,47 @@
 import os
 import jwt
 import bcrypt
+import json
+import boto3
 from datetime import datetime, timedelta, timezone
 from db import get_user_by_email, store_token, get_token, update_last_login
+from botocore.exceptions import ClientError
 
-JWT_SECRET = os.environ.get('JWT_SECRET')
-if not JWT_SECRET:
-    raise ValueError("JWT_SECRET environment variable not set")
+# Initialize Secrets Manager client
+secrets_client = boto3.client('secretsmanager')
+
+# Cache the secret to avoid fetching on every request
+_jwt_secret_cache = None
+
+def get_jwt_secret():
+    """
+    Get JWT secret from AWS Secrets Manager with caching
+    """
+    global _jwt_secret_cache
+    
+    # Return cached value if available
+    if _jwt_secret_cache:
+        return _jwt_secret_cache
+    
+    # Get secret name from environment variable
+    secret_name = os.environ.get('JWT_SECRET_NAME', 'gms-racecars/jwt-secret')
+    
+    try:
+        response = secrets_client.get_secret_value(SecretId=secret_name)
+        
+        # Parse the secret
+        if 'SecretString' in response:
+            secret_data = json.loads(response['SecretString'])
+            _jwt_secret_cache = secret_data['JWT_SECRET']
+        else:
+            raise ValueError("Secret not found in SecretString")
+        
+        return _jwt_secret_cache
+        
+    except ClientError as e:
+        print(f"Error fetching secret: {e}")
+        raise ValueError(f"Failed to fetch JWT_SECRET from Secrets Manager: {e}")
+
 
 def login_user(email, password):
     """
@@ -35,6 +70,9 @@ def login_user(email, password):
         if not bcrypt.checkpw(password.encode('utf-8'), password_hash.encode('utf-8')):
             return {'success': False, 'error': 'Invalid credentials'}
         
+        # Get JWT secret from Secrets Manager
+        jwt_secret = get_jwt_secret()
+        
         # Create JWT token
         token_payload = {
             'userId': user['userId'],
@@ -45,7 +83,7 @@ def login_user(email, password):
             'exp': datetime.now(timezone.utc) + timedelta(days=7)
         }
         
-        token = jwt.encode(token_payload, JWT_SECRET, algorithm='HS256')
+        token = jwt.encode(token_payload, jwt_secret, algorithm='HS256')
         
         # Store token in database
         store_token(token, user['userId'])
@@ -85,8 +123,11 @@ def validate_token(token):
         dict: {'valid': bool, 'user': dict} or {'valid': bool, 'error': str}
     """
     try:
+        # Get JWT secret from Secrets Manager
+        jwt_secret = get_jwt_secret()
+        
         # Verify JWT signature and expiration
-        payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+        payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
         
         # Check if token exists in database (not revoked)
         token_data = get_token(token)
