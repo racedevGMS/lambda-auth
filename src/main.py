@@ -1,129 +1,129 @@
 import json
-import os
 from auth import login_user, validate_token
-from utils import create_response, parse_cookies
 
 def handler(event, context):
     """
-    Main Lambda handler for authentication endpoints
+    Simple Lambda handler - accepts direct JSON events
+    
+    Login event:
+    {
+      "action": "login",
+      "email": "user@example.com",
+      "password": "password123"
+    }
+    
+    Validate event:
+    {
+      "action": "validate",
+      "token": "jwt-token-string"
+    }
+    
+    Logout event:
+    {
+      "action": "logout",
+      "token": "jwt-token-string"
+    }
     """
     try:
-        # Get HTTP method and path
-        http_method = event.get('httpMethod', '')
-        path = event.get('path', '')
+        action = event.get('action')
         
-        print(f"Request: {http_method} {path}")
-        
-        # Route to appropriate handler
-        if path == '/auth/login' and http_method == 'POST':
+        if action == 'login':
             return handle_login(event)
         
-        elif path == '/auth/validate' and http_method == 'GET':
+        elif action == 'validate':
             return handle_validate(event)
         
-        elif path == '/auth/logout' and http_method == 'POST':
+        elif action == 'logout':
             return handle_logout(event)
         
         else:
-            return create_response(404, {'error': 'Endpoint not found'})
+            return {
+                'success': False,
+                'error': 'Invalid action. Must be: login, validate, or logout'
+            }
             
     except Exception as e:
         print(f"Error: {str(e)}")
-        return create_response(500, {'error': 'Internal server error'})
+        import traceback
+        traceback.print_exc()
+        return {
+            'success': False,
+            'error': f'Internal error: {str(e)}'
+        }
 
 
 def handle_login(event):
     """Handle user login"""
     try:
-        # Parse request body
-        body = json.loads(event.get('body', '{}'))
-        email = body.get('email')
-        password = body.get('password')
+        email = event.get('email')
+        password = event.get('password')
         
         if not email or not password:
-            return create_response(400, {'error': 'Email and password required'})
+            return {
+                'success': False,
+                'error': 'Email and password required'
+            }
         
         # Attempt login
         result = login_user(email, password)
-        
-        if result['success']:
-            # Create cookie with token
-            cookie_header = (
-                f"token={result['token']}; "
-                f"HttpOnly; Secure; SameSite=Strict; "
-                f"Max-Age=604800; Path=/"
-            )
-            
-            return create_response(
-                200, 
-                {
-                    'message': 'Login successful',
-                    'user': result['user']
-                },
-                headers={'Set-Cookie': cookie_header}
-            )
-        else:
-            return create_response(401, {'error': result['error']})
+        return result
             
     except Exception as e:
         print(f"Login error: {str(e)}")
-        return create_response(500, {'error': 'Login failed'})
+        return {
+            'success': False,
+            'error': f'Login failed: {str(e)}'
+        }
 
 
 def handle_validate(event):
-    """Validate existing token from cookie"""
+    """Validate token"""
     try:
-        # Get token from cookie
-        cookies = parse_cookies(event.get('headers', {}))
-        token = cookies.get('token')
+        token = event.get('token')
         
         if not token:
-            return create_response(401, {'error': 'No token provided'})
+            return {
+                'valid': False,
+                'error': 'Token required'
+            }
         
         # Validate token
         result = validate_token(token)
-        
-        if result['valid']:
-            return create_response(200, {
-                'valid': True,
-                'user': result['user']
-            })
-        else:
-            return create_response(401, {
-                'valid': False,
-                'error': result['error']
-            })
+        return result
             
     except Exception as e:
         print(f"Validation error: {str(e)}")
-        return create_response(500, {'error': 'Validation failed'})
+        return {
+            'valid': False,
+            'error': f'Validation failed: {str(e)}'
+        }
 
 
 def handle_logout(event):
-    """Handle user logout (invalidate token)"""
+    """Handle user logout"""
     try:
-        # Get token from cookie
-        cookies = parse_cookies(event.get('headers', {}))
-        token = cookies.get('token')
+        token = event.get('token')
         
-        if token:
-            # TODO: Delete token from userTokens table
-            from db import delete_token
-            delete_token(token)
+        if not token:
+            return {
+                'success': False,
+                'error': 'Token required'
+            }
         
-        # Clear cookie
-        cookie_header = (
-            "token=; "
-            "HttpOnly; Secure; SameSite=Strict; "
-            "Max-Age=0; Path=/"
-        )
+        # Import here to avoid circular import
+        from db import delete_token
         
-        return create_response(
-            200,
-            {'message': 'Logged out successfully'},
-            headers={'Set-Cookie': cookie_header}
-        )
+        # Delete token from database
+        delete_token(token)
+        
+        return {
+            'success': True,
+            'message': 'Logged out successfully'
+        }
         
     except Exception as e:
         print(f"Logout error: {str(e)}")
-        return create_response(500, {'error': 'Logout failed'})
+        return {
+            'success': False,
+            'error': f'Logout failed: {str(e)}'
+        }
