@@ -5,15 +5,11 @@ def create_response(status_code, body, set_cookie=None):
     """Create Lambda response"""
     response = {
         'statusCode': status_code,
-        'headers': {
-            'Access-Control-Allow-Origin': 'http://localhost:4200',
-            'Access-Control-Allow-Credentials': 'true'
-        },
         'body': json.dumps(body)
     }
 
     if set_cookie:
-        response['headers']['Set-Cookie'] = set_cookie
+        response['headers'] = {'Set-Cookie': set_cookie}
 
     return response
 
