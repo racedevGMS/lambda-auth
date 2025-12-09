@@ -1,12 +1,26 @@
 import json
 from auth import login_user, validate_token
 
-def create_response(status_code, body):
-    """Create Lambda response - API Gateway handles CORS"""
-    return {
+def create_response(status_code, body, set_cookie=None):
+    """Create Lambda response"""
+    response = {
         'statusCode': status_code,
+        'headers': {
+            'Access-Control-Allow-Origin': 'http://localhost:4200',
+            'Access-Control-Allow-Credentials': 'true'
+        },
         'body': json.dumps(body)
     }
+
+    if set_cookie:
+        response['headers']['Set-Cookie'] = set_cookie
+
+    return response
+
+def create_auth_cookie(token):
+    """Create auth cookie - 7 days, HttpOnly, Secure"""
+    max_age = 7 * 24 * 60 * 60
+    return f'authToken={token}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age={max_age}'
 
 def handler(event, context):
     """
@@ -28,7 +42,8 @@ def handler(event, context):
         if action == 'login':
             result = handle_login(body)
             status_code = 200 if result.get('success') else 401
-            return create_response(status_code, result)
+            cookie = create_auth_cookie(result['token']) if result.get('success') else None
+            return create_response(status_code, result, cookie)
 
         elif action == 'validate':
             result = handle_validate(body)
