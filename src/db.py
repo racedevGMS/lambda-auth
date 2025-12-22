@@ -69,6 +69,11 @@ def get_all_users():
         # Remove sensitive data from all users
         users_info = []
         for user in users:
+            # Convert carNumber to string if it's a number
+            car_number = user.get("carNumber")
+            if car_number is not None:
+                car_number = str(car_number)
+
             users_info.append(
                 {
                     "userId": user.get("userId"),
@@ -76,7 +81,7 @@ def get_all_users():
                     "firstName": user.get("firstName"),
                     "lastName": user.get("lastName"),
                     "role": user.get("role"),
-                    "carNumber": user.get("carNumber"),
+                    "carNumber": car_number,
                     "appPermissions": user.get("appPermissions", []),
                     "isActive": user.get("isActive", False),
                     "createdAt": user.get("createdAt"),
