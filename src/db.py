@@ -338,3 +338,41 @@ def update_user_permissions(user_id, app_permissions):
     except Exception as e:
         print(f"Unexpected error updating permissions: {e}")
         return {"success": False, "error": "Failed to update permissions"}
+
+
+def update_user_role(user_id, role):
+    """
+    Update user's role
+
+    Args:
+        user_id: User's ID
+        role: New role (e.g., 'user', 'admin')
+
+    Returns:
+        dict: {'success': bool} or {'success': bool, 'error': str}
+    """
+    try:
+        # Get user to verify they exist
+        user = get_user_by_id(user_id)
+        if not user:
+            return {"success": False, "error": "User not found"}
+
+        # Update role
+        users_table.update_item(
+            Key={"userId": user_id},
+            UpdateExpression="SET #role = :role, updatedAt = :now",
+            ExpressionAttributeNames={"#role": "role"},
+            ExpressionAttributeValues={
+                ":role": role,
+                ":now": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+
+        return {"success": True, "message": "Role updated", "role": role}
+
+    except ClientError as e:
+        print(f"Error updating role: {e}")
+        return {"success": False, "error": f"Failed to update role: {str(e)}"}
+    except Exception as e:
+        print(f"Unexpected error updating role: {e}")
+        return {"success": False, "error": "Failed to update role"}

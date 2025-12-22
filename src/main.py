@@ -17,6 +17,7 @@ def handler(event, context):
     Add User: {"action": "add_user", "email": "...", "firstName": "...", "lastName": "...", "role": "...", "carNumber": "..."}
     Verify & Set Password: {"action": "verify_password", "userId": "...", "password": "..."}
     Update Permissions: {"action": "update_permissions", "userId": "...", "appPermissions": [...]}
+    Update Role: {"action": "update_role", "userId": "...", "role": "admin|user"}
     Get All Users: {"action": "get_all_users"}
     """
     try:
@@ -63,12 +64,17 @@ def handler(event, context):
             status_code = 200 if result.get("success") else 400
             return create_response(status_code, result)
 
+        elif action == "update_role":
+            result = handle_update_role(body)
+            status_code = 200 if result.get("success") else 400
+            return create_response(status_code, result)
+
         else:
             return create_response(
                 400,
                 {
                     "success": False,
-                    "error": "Invalid action. Must be: login, validate, logout, add_user, verify_password, update_permissions, or get_all_users",
+                    "error": "Invalid action. Must be: login, validate, logout, add_user, verify_password, update_permissions, get_all_users, or update_role",
                 },
             )
 
@@ -184,3 +190,22 @@ def handle_get_all_users(body):
 
     # Get all users
     return get_all_users()
+
+
+def handle_update_role(body):
+    """Handle updating user role"""
+    user_id = body.get("userId")
+    role = body.get("role")
+
+    # Validate required fields
+    if not user_id:
+        return {"success": False, "error": "User ID required"}
+
+    if not role:
+        return {"success": False, "error": "Role required"}
+
+    # Import here to avoid circular import
+    from db import update_user_role
+
+    # Update role
+    return update_user_role(user_id, role)
