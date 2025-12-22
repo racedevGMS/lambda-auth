@@ -17,6 +17,7 @@ def handler(event, context):
     Add User: {"action": "add_user", "email": "...", "firstName": "...", "lastName": "...", "role": "...", "carNumber": "..."}
     Verify & Set Password: {"action": "verify_password", "userId": "...", "password": "..."}
     Update Permissions: {"action": "update_permissions", "userId": "...", "appPermissions": [...]}
+    Get All Users: {"action": "get_all_users"}
     """
     try:
         # Parse body
@@ -57,12 +58,17 @@ def handler(event, context):
             status_code = 200 if result.get("success") else 400
             return create_response(status_code, result)
 
+        elif action == "get_all_users":
+            result = handle_get_all_users(body)
+            status_code = 200 if result.get("success") else 400
+            return create_response(status_code, result)
+
         else:
             return create_response(
                 400,
                 {
                     "success": False,
-                    "error": "Invalid action. Must be: login, validate, logout, add_user, verify_password, or update_permissions",
+                    "error": "Invalid action. Must be: login, validate, logout, add_user, verify_password, update_permissions, or get_all_users",
                 },
             )
 
@@ -169,3 +175,12 @@ def handle_update_permissions(body):
 
     # Update permissions
     return update_user_permissions(user_id, app_permissions)
+
+
+def handle_get_all_users(body):
+    """Handle getting all users"""
+    # Import here to avoid circular import
+    from db import get_all_users
+
+    # Get all users
+    return get_all_users()

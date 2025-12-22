@@ -55,6 +55,45 @@ def get_user_by_id(user_id):
         return None
 
 
+def get_all_users():
+    """
+    Get all users from the users table
+
+    Returns:
+        dict: {'success': bool, 'users': list} or {'success': bool, 'error': str}
+    """
+    try:
+        response = users_table.scan()
+        users = response.get("Items", [])
+
+        # Remove sensitive data from all users
+        users_info = []
+        for user in users:
+            users_info.append(
+                {
+                    "userId": user.get("userId"),
+                    "email": user.get("email"),
+                    "firstName": user.get("firstName"),
+                    "lastName": user.get("lastName"),
+                    "role": user.get("role"),
+                    "carNumber": user.get("carNumber"),
+                    "appPermissions": user.get("appPermissions", []),
+                    "isActive": user.get("isActive", False),
+                    "createdAt": user.get("createdAt"),
+                    "lastLogin": user.get("lastLogin"),
+                }
+            )
+
+        return {"success": True, "users": users_info, "count": len(users_info)}
+
+    except ClientError as e:
+        print(f"Error getting all users: {e}")
+        return {"success": False, "error": f"Failed to get users: {str(e)}"}
+    except Exception as e:
+        print(f"Unexpected error getting all users: {e}")
+        return {"success": False, "error": "Failed to get users"}
+
+
 def update_last_login(user_id):
     """
     Update user's lastLogin timestamp
