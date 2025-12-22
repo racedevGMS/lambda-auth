@@ -395,3 +395,32 @@ def update_user_role(user_id, role, app_permissions=None):
     except Exception as e:
         print(f"Unexpected error updating role: {e}")
         return {"success": False, "error": "Failed to update role"}
+
+
+def delete_user(user_id):
+    """
+    Delete a user from the users table
+
+    Args:
+        user_id: User's ID
+
+    Returns:
+        dict: {'success': bool} or {'success': bool, 'error': str}
+    """
+    try:
+        # Get user to verify they exist
+        user = get_user_by_id(user_id)
+        if not user:
+            return {"success": False, "error": "User not found"}
+
+        # Delete user from DynamoDB
+        users_table.delete_item(Key={"userId": user_id})
+
+        return {"success": True, "message": "User deleted successfully"}
+
+    except ClientError as e:
+        print(f"Error deleting user: {e}")
+        return {"success": False, "error": f"Failed to delete user: {str(e)}"}
+    except Exception as e:
+        print(f"Unexpected error deleting user: {e}")
+        return {"success": False, "error": "Failed to delete user"}
