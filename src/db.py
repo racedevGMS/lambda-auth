@@ -340,13 +340,14 @@ def update_user_permissions(user_id, app_permissions):
         return {"success": False, "error": "Failed to update permissions"}
 
 
-def update_user_role(user_id, role):
+def update_user_role(user_id, role, app_permissions=None):
     """
-    Update user's role
+    Update user's role and optionally app permissions
 
     Args:
         user_id: User's ID
         role: New role (e.g., 'user', 'admin')
+        app_permissions: Optional list of app permissions (if admin, grants all apps)
 
     Returns:
         dict: {'success': bool} or {'success': bool, 'error': str}
@@ -357,18 +358,36 @@ def update_user_role(user_id, role):
         if not user:
             return {"success": False, "error": "User not found"}
 
-        # Update role
-        users_table.update_item(
-            Key={"userId": user_id},
-            UpdateExpression="SET #role = :role, updatedAt = :now",
-            ExpressionAttributeNames={"#role": "role"},
-            ExpressionAttributeValues={
-                ":role": role,
-                ":now": datetime.now(timezone.utc).isoformat(),
-            },
-        )
-
-        return {"success": True, "message": "Role updated", "role": role}
+        # If app_permissions is provided, update both role and permissions
+        if app_permissions is not None:
+            users_table.update_item(
+                Key={"userId": user_id},
+                UpdateExpression="SET #role = :role, appPermissions = :perms, updatedAt = :now",
+                ExpressionAttributeNames={"#role": "role"},
+                ExpressionAttributeValues={
+                    ":role": role,
+                    ":perms": app_permissions,
+                    ":now": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+            return {
+                "success": True,
+                "message": "Role and permissions updated",
+                "role": role,
+                "appPermissions": app_permissions,
+            }
+        else:
+            # Update role only
+            users_table.update_item(
+                Key={"userId": user_id},
+                UpdateExpression="SET #role = :role, updatedAt = :now",
+                ExpressionAttributeNames={"#role": "role"},
+                ExpressionAttributeValues={
+                    ":role": role,
+                    ":now": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+            return {"success": True, "message": "Role updated", "role": role}
 
     except ClientError as e:
         print(f"Error updating role: {e}")

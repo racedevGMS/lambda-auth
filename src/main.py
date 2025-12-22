@@ -17,7 +17,7 @@ def handler(event, context):
     Add User: {"action": "add_user", "email": "...", "firstName": "...", "lastName": "...", "role": "...", "carNumber": "..."}
     Verify & Set Password: {"action": "verify_password", "userId": "...", "password": "..."}
     Update Permissions: {"action": "update_permissions", "userId": "...", "appPermissions": [...]}
-    Update Role: {"action": "update_role", "userId": "...", "role": "admin|user"}
+    Update Role: {"action": "update_role", "userId": "...", "role": "admin|user", "appPermissions": [...]} (appPermissions optional)
     Get All Users: {"action": "get_all_users"}
     """
     try:
@@ -196,6 +196,7 @@ def handle_update_role(body):
     """Handle updating user role"""
     user_id = body.get("userId")
     role = body.get("role")
+    app_permissions = body.get("appPermissions")  # Optional
 
     # Validate required fields
     if not user_id:
@@ -207,5 +208,5 @@ def handle_update_role(body):
     # Import here to avoid circular import
     from db import update_user_role
 
-    # Update role
-    return update_user_role(user_id, role)
+    # Update role (and optionally permissions)
+    return update_user_role(user_id, role, app_permissions)
