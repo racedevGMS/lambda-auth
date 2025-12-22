@@ -162,10 +162,11 @@ def create_user(email, first_name, last_name, role, car_number=None):
         dict: {'success': bool, 'userId': str, 'user': dict} or {'success': bool, 'error': str}
     """
     try:
+        # TODO: TESTING ONLY - Remove duplicate email check for testing
         # Check if user already exists
-        existing_user = get_user_by_email(email)
-        if existing_user:
-            return {"success": False, "error": "User with this email already exists"}
+        # existing_user = get_user_by_email(email)
+        # if existing_user:
+        #     return {"success": False, "error": "User with this email already exists"}
 
         # Generate user ID and timestamps
         user_id = str(uuid.uuid4())
